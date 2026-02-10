@@ -1,7 +1,7 @@
 name: Dubizzle Watcher
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # تشغله يدويًا من Actions
 
 jobs:
   run:
@@ -9,18 +9,38 @@ jobs:
     timeout-minutes: 350
 
     steps:
-    - uses: actions/checkout@v4
+      # 1️⃣ سحب الملفات
+      - uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
+      # 2️⃣ إعداد Python
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - run: |
-        pip install selenium requests
-        sudo apt update
-        sudo apt install -y chromium-browser chromium-chromedriver
+      # 3️⃣ تثبيت Chrome الرسمي وChromedriver
+      - run: |
+          sudo apt update
+          sudo apt install -y wget unzip
+          
+          # تثبيت Google Chrome
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb
+          
+          # معرفة نسخة Chrome
+          CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d. -f1)
+          
+          # تنزيل Chromedriver المتوافق
+          wget https://chromedriver.storage.googleapis.com/$CHROME_VERSION.0.0/chromedriver_linux64.zip
+          unzip chromedriver_linux64.zip
+          sudo mv chromedriver /usr/bin/chromedriver
+          sudo chmod +x /usr/bin/chromedriver
 
-    - run: python dubizzle.py
-      env:
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        CHAT_ID: ${{ secrets.CHAT_ID }}
+      # 4️⃣ تثبيت مكتبات Python
+      - run: |
+          pip install selenium requests
+
+      # 5️⃣ تشغيل السكريبت
+      - run: python dubizzle.py
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
