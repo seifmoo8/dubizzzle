@@ -16,7 +16,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 
 CHECK_INTERVAL = 30  # كل كام ثانية يعمل فحص
 
-last_ad_link = None
+seen_links = set()  # حفظ الإعلانات المرسلة سابقاً
 
 # =========================
 # إعداد المتصفح
@@ -36,15 +36,17 @@ driver = webdriver.Chrome(options=options)
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": CHAT_ID,
-        "text": message
-    }
-    requests.post(url, data=data)
+    data = {"chat_id": CHAT_ID, "text": message}
+    try:
+        requests.post(url, data=data)
+    except Exception as e:
+        print("Telegram send error:", e)
 
 # =========================
 # تشغيل المراقبة
 # =========================
+
+print("🚀 بدأ المراقبة على Dubizzle...")
 
 while True:
     try:
@@ -53,22 +55,27 @@ while True:
 
         ads = driver.find_elements(By.CSS_SELECTOR, "a[href*='/ad/']")
 
-        if ads:
-            first_ad = ads[0]
-            link = first_ad.get_attribute("href")
+        # تجاهل الإعلانات المميزة
+        normal_ads = []
+        for ad in ads:
+            classes = ad.get_attribute("class") or ""
+            if "featured" not in classes:  # "featured" غالباً موجودة في الإعلانات المميزة
+                normal_ads.append(ad)
 
-            if link != last_ad_link:
-                last_ad_link = link
-                message = f"📢 إعلان جديد:\n{link}"
-                send_telegram(message)
-                print("New ad sent!")
-            else:
-                print("No new ad")
+        new_count = 0
+        for ad in normal_ads:
+            link = ad.get_attribute("href")
+            if link not in seen_links:
+                seen_links.add(link)
+                title = ad.text.strip() or "إعلان جديد"
+                send_telegram(f"📱 {title}\n{link}")
+                print("✅ إعلان جديد:", link)
+                new_count += 1
 
-        else:
-            print("No ads found")
+        if new_count == 0:
+            print("لا توجد إعلانات جديدة في هذه الجولة.")
 
     except Exception as e:
-        print("Error:", e)
+        print("❌ خطأ:", e)
 
     time.sleep(CHECK_INTERVAL)
